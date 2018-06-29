@@ -68,12 +68,19 @@ class LB130(object):
                 col1 = 'system'
                 col2 = 'get_sysinfo'
                 col3 = 'light_state'
+                col4 = 'dft_on_state'
                 self.__alias = data[col1][col2]['alias']
                 self.__on_off = int(data[col1][col2][col3]['on_off'])
-                self.__hue = int(data[col1][col2][col3]['hue'])
-                self.__saturation = int(data[col1][col2][col3]['saturation'])
-                self.__brightness = int(data[col1][col2][col3]['brightness'])
-                self.__color_temp = int(data[col1][col2][col3]['color_temp'])
+                if self.__on_off == 1:
+                        self.__hue = int(data[col1][col2][col3]['hue'])                
+                        self.__saturation = int(data[col1][col2][col3]['saturation'])
+                        self.__brightness = int(data[col1][col2][col3]['brightness'])
+                        self.__color_temp = int(data[col1][col2][col3]['color_temp'])
+                else:
+                        self.__hue = int(data[col1][col2][col3][col4]['hue'])
+                        self.__saturation = int(data[col1][col2][col3][col4]['saturation'])
+                        self.__brightness = int(data[col1][col2][col3][col4]['brightness'])
+                        self.__color_temp = int(data[col1][col2][col3][col4]['color_temp'])
                 self.device_id = str(data[col1][col2]['deviceId'])
             except (RuntimeError, TypeError, ValueError) as exception:
                 raise Exception(exception)
@@ -120,19 +127,34 @@ class LB130(object):
         Set the bulb to an on state
         '''
         __bulb_on_off = 1
-        self.__update("{\"smartlife.iot.smartbulb.lightingservice\":{\"\
-                      transition_light_state\":{\"ignore_default\":1,\"\
-                      transition_period\":" +
-                      str(self.__transition_period) + ",\"on_off\":1}}}")
+        self.__update("{\"smartlife.iot.smartbulb.lightingservice\":\
+                      {\"transition_light_state\":{\"ignore_default\":\
+                      1,\"transition_period\":" + 
+                      str(self.__transition_period) +
+                      ",\"on_off\":1}}}")
 
     def off(self):
         '''
         Set the bulb to an off state
         '''
         __bulb_on_off = 0
-        self.__update("{\"smartlife.iot.smartbulb.lightingservice\":{\"\
-                      transition_light_state\":{\"ignore_default\":1,\"transition_period\"\
-                      :" + str(self.__transition_period) + ",\"on_off\":0}}}")
+        self.__update("{\"smartlife.iot.smartbulb.lightingservice\":\
+                      {\"transition_light_state\":{\"ignore_default\":\
+                      1,\"transition_period\":" + 
+                      str(self.__transition_period) +
+                      ",\"on_off\":0}}}")
+
+    def ison(self):
+        '''
+        Check if bulb is on
+        '''
+        col1 = 'system'
+        col2 = 'get_sysinfo'
+        col3 = 'light_state'
+        data = json.loads(self.status())
+        self.__ison = int(data[col1][col2][col3]['on_off'])
+        return self.__ison
+        
 
     def reboot(self):
         '''
@@ -245,6 +267,11 @@ class LB130(object):
         '''
         Get the bulb hue
         '''
+        col1 = 'system'
+        col2 = 'get_sysinfo'
+        col3 = 'light_state'
+        data = json.loads(self.status())
+        self.__hue = int(data[col1][col2][col3]['hue'])
         return self.__hue
 
     @hue.setter
@@ -268,6 +295,11 @@ class LB130(object):
         '''
         Get the bulb saturation
         '''
+        col1 = 'system'
+        col2 = 'get_sysinfo'
+        col3 = 'light_state'
+        data = json.loads(self.status())
+        self.__saturation = int(data[col1][col2][col3]['saturation'])
         return self.__saturation
 
     @saturation.setter
@@ -290,6 +322,11 @@ class LB130(object):
         '''
         Get the bulb brightness
         '''
+        col1 = 'system'
+        col2 = 'get_sysinfo'
+        col3 = 'light_state'
+        data = json.loads(self.status())
+        self.__brightness = int(data[col1][col2][col3]['brightness'])
         return self.__brightness
 
     @brightness.setter
@@ -312,6 +349,11 @@ class LB130(object):
         '''
         Get the bulb color temperature
         '''
+        col1 = 'system'
+        col2 = 'get_sysinfo'
+        col3 = 'light_state'
+        data = json.loads(self.status())
+        self.__color_temp = int(data[col1][col2][col3]['color_temp'])
         return self.__color_temp
 
     @temperature.setter
