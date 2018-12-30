@@ -8,6 +8,7 @@ import datetime
 import socket
 import json
 import sys
+import logging
 
 
 class LB130(object):
@@ -19,6 +20,8 @@ class LB130(object):
 
     __udp_ip = "10.0.0.130"
     __udp_port = 9999
+    __socket_timeout = 0.5
+    __max_retry = 5
     __on_off = 0
     __transition_period = 0
     __hue = 0
@@ -63,20 +66,17 @@ class LB130(object):
             # Parse the sysinfo JSON message to get the
             # status of the various parameters
 
-            try:
-                data = json.loads(self.status())
-                col1 = 'system'
-                col2 = 'get_sysinfo'
-                col3 = 'light_state'
-                self.__alias = data[col1][col2]['alias']
-                self.__on_off = int(data[col1][col2][col3]['on_off'])
-                self.__hue = int(data[col1][col2][col3]['hue'])
-                self.__saturation = int(data[col1][col2][col3]['saturation'])
-                self.__brightness = int(data[col1][col2][col3]['brightness'])
-                self.__color_temp = int(data[col1][col2][col3]['color_temp'])
-                self.device_id = str(data[col1][col2]['deviceId'])
-            except (RuntimeError, TypeError, ValueError) as exception:
-                raise Exception(exception)
+            data = json.loads(self.status())
+            col1 = 'system'
+            col2 = 'get_sysinfo'
+            col3 = 'light_state'
+            self.__alias = data[col1][col2]['alias']
+            self.__on_off = int(data[col1][col2][col3]['on_off'])
+            self.__hue = int(data[col1][col2][col3]['hue'])
+            self.__saturation = int(data[col1][col2][col3]['saturation'])
+            self.__brightness = int(data[col1][col2][col3]['brightness'])
+            self.__color_temp = int(data[col1][col2][col3]['color_temp'])
+            self.device_id = str(data[col1][col2]['deviceId'])
 
             # Parse the light details JSON message to get the
             # status of the various parameters
@@ -399,30 +399,7 @@ class LB130(object):
         '''
         Update the bulbs status
         '''
-        enc_message = self.__encrypt(message, self.encryption_key)
-        
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sock.settimeout(5)
-            sock.sendto(enc_message, (self.__udp_ip, self.__udp_port))
-            data_received = False
-            dec_data = ""
-            while True:
-                data, addr = sock.recvfrom(1024)  # buffer size is 1024 bytes
-                dec_data = self.__decrypt(data, self.encryption_key)
-                if "}}}" in dec_data:  # end of sysinfo message
-                    data_received = True
-                    break
-
-            if data_received:
-                if "\"err_code\":0" in dec_data:
-                    return
-                else:
-                    raise RuntimeError("Bulb returned error: " + dec_data)
-            else:
-                raise RuntimeError("Error connecting to bulb")
-        except:
-            raise RuntimeError("Error connecting to bulb")
+        self.__fetch_data(message)
 
     def __fetch_data(self, message):
         '''
@@ -430,25 +407,28 @@ class LB130(object):
         '''
         enc_message = self.__encrypt(message, self.encryption_key)
 
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sock.settimeout(5)
-            sock.sendto(enc_message, (self.__udp_ip, self.__udp_port))
-            data_received = False
-            dec_data = ""
-            while True:
-                data, addr = sock.recvfrom(1024)  # buffer size is 1024 bytes
-                dec_data = self.__decrypt(data, self.encryption_key)
-                if "}}}" in dec_data:  # end of sysinfo message
-                    data_received = True
-                    break
+        for retry in range(1, self.__max_retry + 1):
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                sock.settimeout(self.__socket_timeout * retry)
+                sock.sendto(enc_message, (self.__udp_ip, self.__udp_port))
+                data_received = False
+                dec_data = ""
+                while True:
+                    data, addr = sock.recvfrom(1024)  # buffer size is 1024 bytes
+                    dec_data = self.__decrypt(data, self.encryption_key)
+                    if "}}}" in dec_data:  # end of sysinfo message
+                        data_received = True
+                        break
 
-            if data_received:
-                if "\"err_code\":0" in dec_data:
-                    return dec_data
+                if data_received:
+                    if "\"err_code\":0" in dec_data:
+                        return dec_data
+                    else:
+                        raise RuntimeError("Bulb returned error: " + dec_data)
                 else:
-                    raise RuntimeError("Bulb returned error: " + dec_data)
-            else:
-                raise RuntimeError("Error connecting to bulb")
-        except:
-            raise RuntimeError("Error connecting to bulb")
+                    raise socket.timeout()
+            except socket.timeout:
+                logging.debug('Socket timed out. Try %d/%d' % (retry, self.__max_retry + 1))
+
+        raise RuntimeError("Error connecting to bulb")
