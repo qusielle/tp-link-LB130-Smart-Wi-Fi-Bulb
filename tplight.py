@@ -229,6 +229,7 @@ class LB130(object):
         '''
         Set the timezone on the device
         '''
+        timezone = int(timezone)
         if timezone >= 0 and timezone <= 109:
             date = self.time
             self.__update("{\"smartlife.iot.common.timesetting\":\
@@ -255,6 +256,7 @@ class LB130(object):
         '''
         Set the bulb transition period
         '''
+        period = int(period)
         if period >= 0 and period <= 100000:
             self.__transition_period = period
         else:
@@ -278,6 +280,7 @@ class LB130(object):
         '''
         Set the bulb hue
         '''
+        hue = int(hue)
         if hue >= 0 and hue <= 360:
             self.__hue = hue
             self.__update("{\"smartlife.iot.smartbulb.lightingservice\":\
@@ -307,6 +310,7 @@ class LB130(object):
         '''
         Set the bulb saturation
         '''
+        saturation = int(saturation)
         if saturation >= 0 and saturation <= 100:
             self.__saturation = saturation
             self.__update("{\"smartlife.iot.smartbulb.lightingservice\":\
@@ -335,6 +339,7 @@ class LB130(object):
         '''
         Set the bulb brightness
         '''
+        brightness = int(brightness)
         if brightness >= 0 and brightness <= 100:
             self.__brightness = brightness
             self.__update("{\"smartlife.iot.smartbulb.lightingservice\":\
@@ -363,6 +368,7 @@ class LB130(object):
         '''
         Set the bulb color temperature
         '''
+        temperature = int(temperature)
         if temperature >= 2500 and temperature <= 9000:
             self.__color_temp = temperature
             self.__update("{\"smartlife.iot.smartbulb.lightingservice\":\
