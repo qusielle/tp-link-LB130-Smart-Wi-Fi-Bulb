@@ -28,6 +28,7 @@ class LB130(object):
     __saturation = 0
     __brightness = 0
     __color_temp = 0
+    __mode = ''
     __connected = False
     force_update = False # Force quering the status every time when get property
 
@@ -79,11 +80,13 @@ class LB130(object):
                 self.__saturation = int(data[col1][col2][col3]['saturation'])
                 self.__brightness = int(data[col1][col2][col3]['brightness'])
                 self.__color_temp = int(data[col1][col2][col3]['color_temp'])
+                self.__mode = data[col1][col2][col3]['mode']
             else:
                 self.__hue = int(data[col1][col2][col3][col4]['hue'])
                 self.__saturation = int(data[col1][col2][col3][col4]['saturation'])
                 self.__brightness = int(data[col1][col2][col3][col4]['brightness'])
                 self.__color_temp = int(data[col1][col2][col3][col4]['color_temp'])
+                self.__mode = data[col1][col2][col3][col4]['mode']
             self.device_id = str(data[col1][col2]['deviceId'])
 
             # Parse the light details JSON message to get the
@@ -373,6 +376,33 @@ class LB130(object):
                            ',"color_temp":' + str(self.__color_temp) + '}}}')
         else:
             raise ValueError('temperature out of range: 2500 to 9000')
+
+    @property
+    def mode(self):
+        '''
+        Get the bulb color mode
+        '''
+        if self.force_update:
+            col1 = 'system'
+            col2 = 'get_sysinfo'
+            col3 = 'light_state'
+            data = json.loads(self.status())
+            self.__mode = int(data[col1][col2][col3]['mode'])
+        return self.__mode
+
+    @mode.setter
+    def mode(self, mode):
+        '''
+        Set the bulb color mode
+        '''
+        if mode in ('normal', 'circadian'):
+            self.__mode = mode
+            self.__update('{"smartlife.iot.smartbulb.lightingservice":\
+                          {"transition_light_state":{"ignore_default":1,\
+                           "transition_period":' + str(self.__transition_period) +
+                           ',"mode":"' + mode + '"}}}')
+        else:
+            raise ValueError('mode should be "normal" or "circadian"')
 
     @property
     def hsb(self):

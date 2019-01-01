@@ -66,6 +66,7 @@ def main():
     p.add_argument('--temperature', '-t', type=int, help='Set bulb white color temperature')
     p.add_argument('--hue', type=int, help='Set bulb color hue')
     p.add_argument('--saturation', type=int, help='Set bulb color saturation')
+    p.add_argument('--circadian', action='store_true', help='Set bulb color mode to circadian')
     p.add_argument('--status', action='store_true', help='Set bulb status')
     group = p.add_mutually_exclusive_group()
     group.add_argument('--brightness', '-b', type=int, help='Set bulb brightness')
@@ -87,6 +88,7 @@ def main():
     if args.temperature:       light.temperature = args.temperature
     if args.hue:               light.hue = args.hue
     if args.saturation:        light.saturation = args.saturation
+    if args.circadian:         light.mode = 'circadian'
     if args.brightness:        light.brightness = args.brightness
     if args.brightness_offset: offset_brightness(light, args.brightness_offset)
     if args.switch:            switch_on_off(light)

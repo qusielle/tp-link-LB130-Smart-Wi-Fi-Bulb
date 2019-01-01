@@ -95,3 +95,9 @@ temperature(temperature)
 ```
 
 Get or set the colour temperature.  Value between 2500 and 9000.
+
+```
+mode(mode)
+```
+
+Get or set the bulbs color mode. Value "normal" or "circadian".
