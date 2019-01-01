@@ -18,7 +18,7 @@ class LB130(object):
 
     encryption_key = 0xAB
 
-    __udp_ip = "10.0.0.130"
+    __udp_ip = '10.0.0.130'
     __udp_port = 9999
     __socket_timeout = 0.5
     __max_retry = 5
@@ -31,8 +31,8 @@ class LB130(object):
     __connected = False
     force_update = False # Force quering the status every time when get property
 
-    __alias = ""
-    device_id = ""
+    __alias = ''
+    device_id = ''
     lamp_beam_angle = 0
     min_voltage = 0
     max_voltage = 0
@@ -49,7 +49,7 @@ class LB130(object):
         '''
 
         # validate the ip address
-        ip_array = ip_address.split(".")
+        ip_array = ip_address.split('.')
         valid_ip = True
         try:
             if len(ip_array) == 4:
@@ -112,36 +112,34 @@ class LB130(object):
         '''
         Get the connection status from the bulb
         '''
-        message = "{\"system\":{\"get_sysinfo\":{}}}"
+        message = '{"system":{"get_sysinfo":{}}}'
         return self.__fetch_data(message)
 
     def light_details(self):
         '''
         Get the light details from the bulb
         '''
-        message = "{\"smartlife.iot.smartbulb.lightingservice\":\
-                   {\"get_light_details\":\"\"}}"
+        message = '{"smartlife.iot.smartbulb.lightingservice":\
+                   {"get_light_details":""}}'
         return self.__fetch_data(message)
 
     def on(self):
         '''
         Set the bulb to an on state
         '''
-        self.__update("{\"smartlife.iot.smartbulb.lightingservice\":\
-                      {\"transition_light_state\":{\"ignore_default\":\
-                      1,\"transition_period\":" + 
-                      str(self.__transition_period) +
-                      ",\"on_off\":1}}}")
+        self.__update('{"smartlife.iot.smartbulb.lightingservice":\
+                      {"transition_light_state":{"ignore_default": 1,\
+                       "transition_period":' + str(self.__transition_period) +
+                       ',"on_off":1}}}')
 
     def off(self):
         '''
         Set the bulb to an off state
         '''
-        self.__update("{\"smartlife.iot.smartbulb.lightingservice\":\
-                      {\"transition_light_state\":{\"ignore_default\":\
-                      1,\"transition_period\":" + 
-                      str(self.__transition_period) +
-                      ",\"on_off\":0}}}")
+        self.__update('{"smartlife.iot.smartbulb.lightingservice":\
+                      {"transition_light_state":{"ignore_default": 1,\
+                       "transition_period":' + str(self.__transition_period) +
+                      ',"on_off":0}}}')
 
     def ison(self):
         '''
@@ -158,8 +156,8 @@ class LB130(object):
         '''
         Reboot the bulb
         '''
-        self.__update("{\"smartlife.iot.common.system\":{\"reboot\":\
-                      {\"delay\":1}}}")
+        self.__update('{"smartlife.iot.common.system":{"reboot":\
+                      {"delay":1}}}')
 
     @property
     def alias(self):
@@ -173,15 +171,15 @@ class LB130(object):
         '''
         Set the device alias
         '''
-        self.__update("{\"smartlife.iot.common.system\":{\"set_dev_alias\"\
-                      :{\"alias\":\"" + name + "\"}}}")
+        self.__update('{"smartlife.iot.common.system":{"set_dev_alias"\
+                      :{"alias":"' + name + '"}}}')
 
     @property
     def time(self):
         '''
         Get the date and time from the device
         '''
-        message = "{\"smartlife.iot.common.timesetting\":{\"get_time\":{}}}"
+        message = '{"smartlife.iot.common.timesetting":{"get_time":{}}}'
         device_time = datetime
         data = json.loads(self.__fetch_data(message))
         col1 = 'smartlife.iot.common.timesetting'
@@ -199,14 +197,14 @@ class LB130(object):
         Set the date and time on the device
         '''
         if isinstance(date, datetime.datetime):
-            self.__update("{\"smartlife.iot.common.timesetting\":{\"set_time\"\
-                          :{\"year\":" + str(date.year) +
-                          ",\"month\":" + str(date.month) +
-                          ",\"mday\":" + str(date.day) +
-                          ",\"hour\":" + str(date.hour) +
-                          ",\"min\":" + str(date.minute) +
-                          ",\"sec\":" + str(date.second) +
-                          "}}}")
+            self.__update('{"smartlife.iot.common.timesetting":{"set_time"\
+                          :{"year":' + str(date.year) +
+                          ',"month":' + str(date.month) +
+                          ',"mday":' + str(date.day) +
+                          ',"hour":' + str(date.hour) +
+                          ',"min":' + str(date.minute) +
+                          ',"sec":' + str(date.second) +
+                          '}}}')
         else:
             raise ValueError('Invalid type: must pass a datetime object')
         return
@@ -216,8 +214,8 @@ class LB130(object):
         '''
         Get the timezone from the device
         '''
-        message = "{\"smartlife.iot.common.timesetting\":\
-                   {\"get_timezone\":{}}}"
+        message = '{"smartlife.iot.common.timesetting":\
+                   {"get_timezone":{}}}'
 
         data = json.loads(self.__fetch_data(message))
         col1 = 'smartlife.iot.common.timesetting'
@@ -232,14 +230,14 @@ class LB130(object):
         timezone = int(timezone)
         if timezone >= 0 and timezone <= 109:
             date = self.time
-            self.__update("{\"smartlife.iot.common.timesetting\":\
-                          {\"set_timezone\":{\"index\":" + str(timezone) +
-                          ",\"year\":" + str(date.year) +
-                          ",\"month\":" + str(date.month) +
-                          ",\"mday\":" + str(date.day) +
-                          ",\"hour\":" + str(date.hour) +
-                          ",\"min\":" + str(date.minute) +
-                          ",\"sec\":" + str(date.second) + "}}}")
+            self.__update('{"smartlife.iot.common.timesetting":\
+                          {"set_timezone":{"index":' + str(timezone) +
+                          ',"year":' + str(date.year) +
+                          ',"month":' + str(date.month) +
+                          ',"mday":' + str(date.day) +
+                          ',"hour":' + str(date.hour) +
+                          ',"min":' + str(date.minute) +
+                          ',"sec":' + str(date.second) + '}}}')
         else:
             raise ValueError('Timezone out of range: 0 to 109')
         return
@@ -283,12 +281,11 @@ class LB130(object):
         hue = int(hue)
         if hue >= 0 and hue <= 360:
             self.__hue = hue
-            self.__update("{\"smartlife.iot.smartbulb.lightingservice\":\
-                          {\"transition_light_state\":{\"ignore_default\":\
-                          1,\"transition_period\":" +
-                          str(self.__transition_period) +
-                          ",\"hue\":" + str(self.__hue) + "\
-                          ,\"color_temp\":0}}}")
+            self.__update('{"smartlife.iot.smartbulb.lightingservice":\
+                          {"transition_light_state":{"ignore_default": 1,\
+                          "transition_period":' + str(self.__transition_period) +
+                          ',"hue":' + str(self.__hue) +
+                          ',"color_temp":0}}}')
         else:
             raise ValueError('hue out of range: 0 to 360')
 
@@ -313,11 +310,11 @@ class LB130(object):
         saturation = int(saturation)
         if saturation >= 0 and saturation <= 100:
             self.__saturation = saturation
-            self.__update("{\"smartlife.iot.smartbulb.lightingservice\":\
-                          {\"transition_light_state\":{\"ignore_default\":1,\"\
-                          transition_period\":" +
-                          str(self.__transition_period) + ",\"saturation\":" +
-                          str(self.__saturation) + ",\"color_temp\":0}}}")
+            self.__update('{"smartlife.iot.smartbulb.lightingservice":\
+                          {"transition_light_state":{"ignore_default":1,\
+                          "transition_period":' + str(self.__transition_period) +
+                          ',"saturation":' + str(self.__saturation) +
+                          ',"color_temp":0}}}')
         else:
             raise ValueError('saturation value out of range: 0 to 100')
 
@@ -342,11 +339,10 @@ class LB130(object):
         brightness = int(brightness)
         if brightness >= 0 and brightness <= 100:
             self.__brightness = brightness
-            self.__update("{\"smartlife.iot.smartbulb.lightingservice\":\
-                          {\"transition_light_state\":{\"ignore_default\":1,\"\
-                          transition_period\":" +
-                          str(self.__transition_period) +
-                          ",\"brightness\":" + str(self.__brightness) + "}}}")
+            self.__update('{"smartlife.iot.smartbulb.lightingservice":\
+                          {"transition_light_state":{"ignore_default":1,\
+                           "transition_period":' + str(self.__transition_period) +
+                           ',"brightness":' + str(self.__brightness) + '}}}')
         else:
             raise ValueError('brightness out of range: 0 to 100')
 
@@ -371,11 +367,10 @@ class LB130(object):
         temperature = int(temperature)
         if temperature >= 2500 and temperature <= 9000:
             self.__color_temp = temperature
-            self.__update("{\"smartlife.iot.smartbulb.lightingservice\":\
-                          {\"transition_light_state\":{\"ignore_default\":\
-                          1,\"transition_period\":" +
-                          str(self.__transition_period) + ",\"color_temp\":" +
-                          str(self.__color_temp) + "}}}")
+            self.__update('{"smartlife.iot.smartbulb.lightingservice":\
+                          {"transition_light_state":{"ignore_default":1,\
+                           "transition_period":' + str(self.__transition_period) +
+                           ',"color_temp":' + str(self.__color_temp) + '}}}')
         else:
             raise ValueError('temperature out of range: 2500 to 9000')
 
@@ -394,20 +389,19 @@ class LB130(object):
         try:
             hue, saturation, brightness = hsb
         except ValueError:
-            raise ValueError("Pass an iterable with hue, saturation, and brightness")
+            raise ValueError('Pass an iterable with hue, saturation, and brightness')
 
         if hue >= 0 and hue <= 360 and saturation >= 0 and saturation <= 100 and brightness >= 0 and brightness <= 100:
             self.__hue = hue
             self.__saturation = saturation
             self.__brightness = brightness
-            self.__update("{\"smartlife.iot.smartbulb.lightingservice\":\
-                          {\"transition_light_state\":{\"ignore_default\":\
-                          1,\"transition_period\":" +
-                          str(self.__transition_period) +
-                          ",\"hue\":" + str(self.__hue) +
-                          ",\"saturation\":" + str(self.__saturation) +
-                          ",\"brightness\":" + str(self.__brightness) +
-                          ",\"color_temp\":0}}}")
+            self.__update('{"smartlife.iot.smartbulb.lightingservice":\
+                          {"transition_light_state":{"ignore_default":1,\
+                          "transition_period":' + str(self.__transition_period) +
+                          ',"hue":' + str(self.__hue) +
+                          ',"saturation":' + str(self.__saturation) +
+                          ',"brightness":' + str(self.__brightness) +
+                          ',"color_temp":0}}}')
         else:
             raise ValueError('hue, saturation, or brightness out of range')
 
@@ -426,23 +420,23 @@ class LB130(object):
             valuelist[i] = chr(var ^ int(key))
             key = ord(valuelist[i])
         if sys.version_info >= (3,0):
-            return bytearray("".join(valuelist).encode("latin_1")) # python 3 fix
+            return bytearray(''.join(valuelist).encode('latin_1')) # python 3 fix
         else:
-            return "".join(valuelist)
+            return ''.join(valuelist)
 
     @staticmethod
     def __decrypt(value, key):
         '''
         Decrypt the command string
         '''
-        valuelist = list(value.decode("latin_1"))
+        valuelist = list(value.decode('latin_1'))
 
         for i in range(len(valuelist)):
             var = ord(valuelist[i])
             valuelist[i] = chr(var ^ key)
             key = var
 
-        return "".join(valuelist)
+        return ''.join(valuelist)
 
     def __update(self, message):
         '''
@@ -462,22 +456,22 @@ class LB130(object):
                 sock.settimeout(self.__socket_timeout * retry)
                 sock.sendto(enc_message, (self.__udp_ip, self.__udp_port))
                 data_received = False
-                dec_data = ""
+                dec_data = ''
                 while True:
                     data, addr = sock.recvfrom(1024)  # buffer size is 1024 bytes
                     dec_data = self.__decrypt(data, self.encryption_key)
-                    if "}}}" in dec_data:  # end of sysinfo message
+                    if '}}}' in dec_data:  # end of sysinfo message
                         data_received = True
                         break
 
                 if data_received:
-                    if "\"err_code\":0" in dec_data:
+                    if '"err_code":0' in dec_data:
                         return dec_data
                     else:
-                        raise RuntimeError("Bulb returned error: " + dec_data)
+                        raise RuntimeError('Bulb returned error: ' + dec_data)
                 else:
                     raise socket.timeout()
             except socket.timeout:
                 logging.debug('Socket timed out. Try %d/%d' % (retry, self.__max_retry + 1))
 
-        raise RuntimeError("Error connecting to bulb")
+        raise RuntimeError('Error connecting to bulb')
