@@ -15,6 +15,17 @@ class LB130(object):
 
     encryption_key = 0xAB
 
+    min_brightness = 1
+    max_brightness = 100
+    min_hue = 0
+    max_hue = 360
+    min_saturation = 0
+    max_saturation = 100
+    min_transition_period = 0
+    max_transition_period = 100000
+    min_color_temp = 2500
+    max_color_temp = 9000
+
     __udp_ip = '10.0.0.130'
     __udp_port = 9999
     __socket_timeout = 0.5
@@ -81,7 +92,7 @@ class LB130(object):
     def transite_light_state(self, **kwargs):
         '''Update one or more bulb's properties at one time to achieve a smooth transition between
         states using the bulb's hardware in natural way.
-        Light state keyword arguments: color_temp, on_off, hue, saturation, brightness, color_temp, mode.
+        Light state keyword arguments: transition_period, on_off, hue, saturation, brightness, color_temp, mode.
         Pass synchronous=True to sleep until the end of transition_period.
         '''
         data = {'smartlife.iot.smartbulb.lightingservice': {
@@ -106,10 +117,10 @@ class LB130(object):
                 state[arg] = casted_arg
 
         state_setter('on_off',     int, lambda x: x in (0, 1))
-        state_setter('hue',        int, lambda x: 0 <= x <= 360)
-        state_setter('saturation', int, lambda x: 0 <= x <= 100)
-        state_setter('brightness', int, lambda x: 0 <= x <= 100)
-        state_setter('color_temp', int, lambda x: 2500 <= x <= 9000 or x == 0)
+        state_setter('hue',        int, lambda x: self.min_hue <= x <= self.max_hue)
+        state_setter('saturation', int, lambda x: self.min_saturation <= x <= self.max_saturation)
+        state_setter('brightness', int, lambda x: self.min_brightness <= x <= self.max_brightness)
+        state_setter('color_temp', int, lambda x: self.min_color_temp <= x <= self.max_color_temp or x == 0)
         state_setter('mode',       str, lambda x: x in ('normal', 'circadian'))
 
         if kwargs.get('synchronous'):
@@ -216,10 +227,10 @@ class LB130(object):
     @transition_period.setter
     def transition_period(self, period):
         '''Set the bulb transition period'''
-        if period >= 0 and period <= 100000:
+        if self.min_transition_period <= period <= self.max_transition_period:
             self.__transition_period = period
         else:
-            raise ValueError('transition_period out of range: 0 to 100000')
+            raise ValueError('transition_period out of range: %d to %d' % (self.min_transition_period, self.max_transition_period))
 
     @property
     def hue(self):
