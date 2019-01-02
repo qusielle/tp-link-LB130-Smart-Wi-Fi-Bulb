@@ -1,20 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-'''
-Control class for TP-Link A19-LB130 RBGW WiFi bulb
-'''
+'''Control class for TP-Link A19-LB130 RBGW WiFi bulb'''
 
 import datetime
 import socket
 import json
 import sys
 import logging
+import time
 
 
 class LB130(object):
-    '''
-    Methods for controlling the LB130 bulb
-    '''
+    '''Methods for controlling the LB130 bulb'''
 
     encryption_key = 0xAB
 
@@ -29,7 +26,6 @@ class LB130(object):
     __brightness = 0
     __color_temp = 0
     __mode = ''
-    __connected = False
     force_update = False # Force quering the status every time when get property
 
     __alias = ''
@@ -45,219 +41,181 @@ class LB130(object):
     # Public Methods
 
     def __init__(self, ip_address):
-        '''
-        Initialise the bulb with an ip address
-        '''
+        '''Initialise the bulb with an ip address'''
 
         # validate the ip address
-        ip_array = ip_address.split('.')
-        valid_ip = True
-        try:
-            if len(ip_array) == 4:
-                for ipval in ip_array:
-                    if int(ipval) < 0 or int(ipval) > 255:
-                        valid_ip = False
-            else:
-                valid_ip = False
-        except (RuntimeError, TypeError, ValueError):
-            valid_ip = False
-
-        if valid_ip:
-            self.__udp_ip = ip_address
-
-            # Parse the sysinfo JSON message to get the
-            # status of the various parameters
-
-            data = json.loads(self.status())
-            col1 = 'system'
-            col2 = 'get_sysinfo'
-            col3 = 'light_state'
-            col4 = 'dft_on_state'
-            self.__alias = data[col1][col2]['alias']
-            self.__on_off = int(data[col1][col2][col3]['on_off'])
-            if self.__on_off == 1:
-                self.__hue = int(data[col1][col2][col3]['hue'])
-                self.__saturation = int(data[col1][col2][col3]['saturation'])
-                self.__brightness = int(data[col1][col2][col3]['brightness'])
-                self.__color_temp = int(data[col1][col2][col3]['color_temp'])
-                self.__mode = data[col1][col2][col3]['mode']
-            else:
-                self.__hue = int(data[col1][col2][col3][col4]['hue'])
-                self.__saturation = int(data[col1][col2][col3][col4]['saturation'])
-                self.__brightness = int(data[col1][col2][col3][col4]['brightness'])
-                self.__color_temp = int(data[col1][col2][col3][col4]['color_temp'])
-                self.__mode = data[col1][col2][col3][col4]['mode']
-            self.device_id = str(data[col1][col2]['deviceId'])
-
-            # Parse the light details JSON message to get the
-            # status of the various parameters
-
-            try:
-                data = json.loads(self.light_details())
-                col1 = 'smartlife.iot.smartbulb.lightingservice'
-                col2 = 'get_light_details'
-                inc = 'incandescent_equivalent'
-                colour = 'color_rendering_index'
-                self.lamp_beam_angle = int(data[col1][col2]['lamp_beam_angle'])
-                self.min_voltage = int(data[col1][col2]['min_voltage'])
-                self.max_voltage = int(data[col1][col2]['max_voltage'])
-                self.wattage = int(data[col1][col2]['wattage'])
-                self.incandescent_equivalent = int(data[col1][col2][inc])
-                self.max_lumens = int(data[col1][col2]['max_lumens'])
-                self.color_rendering_index = str(data[col1][col2][colour])
-            except (RuntimeError, TypeError, ValueError) as exception:
-                raise Exception(exception)
-
-        else:
+        splitted_ip = tuple(int(i) if i.isdigit() else -1 for i in ip_address.split('.'))
+        valid_ip = (len(splitted_ip) == 4) and all(True if 0 <= i <= 255 else False for i in splitted_ip)
+        if not valid_ip:
             raise ValueError('Invalid IPv4 IP address.')
 
+        self.__udp_ip = ip_address
+
+        # Parse the sysinfo JSON message to get the
+        # status of the various parameters
+        self.__update_self_status()
+
+        # Parse the light details JSON message to get the
+        # status of the various parameters
+        data = self.light_details()
+        light_details_data = data['smartlife.iot.smartbulb.lightingservice']['get_light_details']
+        self.lamp_beam_angle = int(light_details_data['lamp_beam_angle'])
+        self.min_voltage = int(light_details_data['min_voltage'])
+        self.max_voltage = int(light_details_data['max_voltage'])
+        self.wattage = int(light_details_data['wattage'])
+        self.incandescent_equivalent = int(light_details_data['incandescent_equivalent'])
+        self.max_lumens = int(light_details_data['max_lumens'])
+        self.color_rendering_index = str(light_details_data['color_rendering_index'])
+
+    def __str__(self):
+        return '<LB130' \
+             + ' '                   + str(self.__udp_ip) \
+             + ' on/off:'            + str(self.__on_off) \
+             + ' transition_period:' + str(self.__transition_period) \
+             + ' hue:'               + str(self.__hue) \
+             + ' saturation:'        + str(self.__saturation) \
+             + ' brightness:'        + str(self.__brightness) \
+             + ' color_temp:'        + str(self.__color_temp) \
+             + '>'
+
+    def transite_light_state(self, **kwargs):
+        '''Update one or more bulb's properties at one time to achieve a smooth transition between
+        states using the bulb's hardware in natural way.
+        Light state keyword arguments: color_temp, on_off, hue, saturation, brightness, color_temp, mode.
+        Pass synchronous=True to sleep until the end of transition_period.
+        '''
+        data = {'smartlife.iot.smartbulb.lightingservice': {
+                   'transition_light_state': {'ignore_default': 1}}}
+        state = data['smartlife.iot.smartbulb.lightingservice']['transition_light_state']
+
+        if ('hue' in kwargs or 'saturation' in kwargs):
+            if 'color_temp' in kwargs:
+                raise ValueError('color_temp should not be set with hue or saturation.')
+            kwargs['color_temp'] = 0
+
+        if 'transition_period' in kwargs:
+            self.transition_period = kwargs['transition_period']
+        state['transition_period'] = self.__transition_period
+
+        def state_setter(arg, arg_type, checker):
+            if arg in kwargs:
+                casted_arg = arg_type(kwargs[arg])
+                if not checker(casted_arg):
+                    raise ValueError(arg + ' is wrong.')
+                setattr(self, '__' + arg, casted_arg) # self.__arg = kwargs['arg']
+                state[arg] = casted_arg
+
+        state_setter('on_off',     int, lambda x: x in (0, 1))
+        state_setter('hue',        int, lambda x: 0 <= x <= 360)
+        state_setter('saturation', int, lambda x: 0 <= x <= 100)
+        state_setter('brightness', int, lambda x: 0 <= x <= 100)
+        state_setter('color_temp', int, lambda x: 2500 <= x <= 9000 or x == 0)
+        state_setter('mode',       str, lambda x: x in ('normal', 'circadian'))
+
+        if kwargs.get('synchronous'):
+            start_time = time.time()
+
+        self.__fetch_dict(data)
+
+        if kwargs.get('synchronous'):
+            time.sleep(self.__transition_period / 1000.0 - (time.time() - start_time))
+
     def status(self):
-        '''
-        Get the connection status from the bulb
-        '''
-        message = '{"system":{"get_sysinfo":{}}}'
-        return self.__fetch_data(message)
+        '''Get the connection status from the bulb'''
+        return json.dumps(self.__update_self_status())
 
     def light_details(self):
-        '''
-        Get the light details from the bulb
-        '''
-        message = '{"smartlife.iot.smartbulb.lightingservice":\
-                   {"get_light_details":""}}'
-        return self.__fetch_data(message)
+        '''Get the light details from the bulb'''
+        return self.__fetch_dict({"smartlife.iot.smartbulb.lightingservice": {"get_light_details": ""}})
 
     def on(self):
-        '''
-        Set the bulb to an on state
-        '''
-        self.__update('{"smartlife.iot.smartbulb.lightingservice":\
-                      {"transition_light_state":{"ignore_default": 1,\
-                       "transition_period":' + str(self.__transition_period) +
-                       ',"on_off":1}}}')
+        '''Set the bulb to an on state'''
+        self.transite_light_state(on_off=1)
 
     def off(self):
-        '''
-        Set the bulb to an off state
-        '''
-        self.__update('{"smartlife.iot.smartbulb.lightingservice":\
-                      {"transition_light_state":{"ignore_default": 1,\
-                       "transition_period":' + str(self.__transition_period) +
-                      ',"on_off":0}}}')
+        '''Set the bulb to an off state'''
+        self.transite_light_state(on_off=0)
 
     def ison(self):
-        '''
-        Check if bulb is on
-        '''
-        col1 = 'system'
-        col2 = 'get_sysinfo'
-        col3 = 'light_state'
-        data = json.loads(self.status())
-        self.__ison = int(data[col1][col2][col3]['on_off'])
-        return self.__ison
+        '''Check if bulb is on'''
+        self.__update_self_status()
+        return self.__on_off
 
     def reboot(self):
-        '''
-        Reboot the bulb
-        '''
-        self.__update('{"smartlife.iot.common.system":{"reboot":\
-                      {"delay":1}}}')
+        '''Reboot the bulb'''
+        self.__fetch_dict({"smartlife.iot.common.system": {"reboot": {"delay": 1}}})
 
     @property
     def alias(self):
-        '''
-        Get the device alias
-        '''
+        '''Get the device alias'''
         return self.__alias
 
     @alias.setter
     def alias(self, name):
-        '''
-        Set the device alias
-        '''
-        self.__update('{"smartlife.iot.common.system":{"set_dev_alias"\
-                      :{"alias":"' + name + '"}}}')
+        '''Set the device alias'''
+        if not isinstance(name, str):
+            ValueError('name should be str.')
+        self.__fetch_dict({"smartlife.iot.common.system": {"set_dev_alias": {"alias": name}}})
 
     @property
     def time(self):
-        '''
-        Get the date and time from the device
-        '''
-        message = '{"smartlife.iot.common.timesetting":{"get_time":{}}}'
-        device_time = datetime
-        data = json.loads(self.__fetch_data(message))
-        col1 = 'smartlife.iot.common.timesetting'
-        device_time.year = data[col1]['get_time']['year']
-        device_time.month = data[col1]['get_time']['month']
-        device_time.day = data[col1]['get_time']['mday']
-        device_time.hour = data[col1]['get_time']['hour']
-        device_time.minute = data[col1]['get_time']['min']
-        device_time.second = data[col1]['get_time']['sec']
-        return device_time
+        '''Get the date and time from the device'''
+        data = self.__fetch_dict({"smartlife.iot.common.timesetting": {"get_time": {}}})
+        get_time = data['smartlife.iot.common.timesetting']['get_time']
+        return datetime.datetime(get_time['year'],
+                                 get_time['month'],
+                                 get_time['mday'],
+                                 get_time['hour'],
+                                 get_time['min'],
+                                 get_time['sec'])
 
     @time.setter
     def time(self, date):
-        '''
-        Set the date and time on the device
-        '''
+        '''Set the date and time on the device'''
         if isinstance(date, datetime.datetime):
-            self.__update('{"smartlife.iot.common.timesetting":{"set_time"\
-                          :{"year":' + str(date.year) +
-                          ',"month":' + str(date.month) +
-                          ',"mday":' + str(date.day) +
-                          ',"hour":' + str(date.hour) +
-                          ',"min":' + str(date.minute) +
-                          ',"sec":' + str(date.second) +
-                          '}}}')
+            self.__fetch_dict({"smartlife.iot.common.timesetting": {
+                                "set_time": {"year": date.year,
+                                             "month": date.month,
+                                             "mday": date.day,
+                                             "hour": date.hour,
+                                             "min": date.minute,
+                                             "sec": date.second}}})
         else:
             raise ValueError('Invalid type: must pass a datetime object')
         return
 
     @property
     def timezone(self):
-        '''
-        Get the timezone from the device
-        '''
-        message = '{"smartlife.iot.common.timesetting":\
-                   {"get_timezone":{}}}'
-
-        data = json.loads(self.__fetch_data(message))
-        col1 = 'smartlife.iot.common.timesetting'
-        timezone = data[col1]['get_timezone']['index']
+        '''Get the timezone from the device'''
+        data = self.__fetch_dict({"smartlife.iot.common.timesetting": {"get_timezone": {}}})
+        timezone = data['smartlife.iot.common.timesetting']['get_timezone']['index']
         return timezone
 
     @timezone.setter
     def timezone(self, timezone):
-        '''
-        Set the timezone on the device
-        '''
-        timezone = int(timezone)
+        '''Set the timezone on the device'''
         if timezone >= 0 and timezone <= 109:
             date = self.time
-            self.__update('{"smartlife.iot.common.timesetting":\
-                          {"set_timezone":{"index":' + str(timezone) +
-                          ',"year":' + str(date.year) +
-                          ',"month":' + str(date.month) +
-                          ',"mday":' + str(date.day) +
-                          ',"hour":' + str(date.hour) +
-                          ',"min":' + str(date.minute) +
-                          ',"sec":' + str(date.second) + '}}}')
+            self.__fetch_dict({"smartlife.iot.common.timesetting": {
+                                 "set_timezone":{ "index": timezone,
+                                                  "year": date.year,
+                                                  "month": date.month,
+                                                  "mday": date.day,
+                                                  "hour": date.hour,
+                                                  "min": date.minute,
+                                                  "sec": date.second}}})
         else:
             raise ValueError('Timezone out of range: 0 to 109')
         return
 
     @property
     def transition_period(self):
-        '''
-        Get the bulb transition period
-        '''
+        '''Get the bulb transition period'''
         return self.__transition_period
 
     @transition_period.setter
     def transition_period(self, period):
-        '''
-        Set the bulb transition period
-        '''
-        period = int(period)
+        '''Set the bulb transition period'''
         if period >= 0 and period <= 100000:
             self.__transition_period = period
         else:
@@ -265,184 +223,84 @@ class LB130(object):
 
     @property
     def hue(self):
-        '''
-        Get the bulb hue
-        '''
+        '''Get the bulb hue'''
         if self.force_update:
-            col1 = 'system'
-            col2 = 'get_sysinfo'
-            col3 = 'light_state'
-            data = json.loads(self.status())
-            self.__hue = int(data[col1][col2][col3]['hue'])
+            self.__update_self_status()
         return self.__hue
 
     @hue.setter
     def hue(self, hue):
-        '''
-        Set the bulb hue
-        '''
-        hue = int(hue)
-        if hue >= 0 and hue <= 360:
-            self.__hue = hue
-            self.__update('{"smartlife.iot.smartbulb.lightingservice":\
-                          {"transition_light_state":{"ignore_default": 1,\
-                          "transition_period":' + str(self.__transition_period) +
-                          ',"hue":' + str(self.__hue) +
-                          ',"color_temp":0}}}')
-        else:
-            raise ValueError('hue out of range: 0 to 360')
+        '''Set the bulb hue'''
+        self.transite_light_state(hue=hue)
 
     @property
     def saturation(self):
-        '''
-        Get the bulb saturation
-        '''
+        '''Get the bulb saturation'''
         if self.force_update:
-            col1 = 'system'
-            col2 = 'get_sysinfo'
-            col3 = 'light_state'
-            data = json.loads(self.status())
-            self.__saturation = int(data[col1][col2][col3]['saturation'])
+            self.__update_self_status()
         return self.__saturation
 
     @saturation.setter
     def saturation(self, saturation):
-        '''
-        Set the bulb saturation
-        '''
-        saturation = int(saturation)
-        if saturation >= 0 and saturation <= 100:
-            self.__saturation = saturation
-            self.__update('{"smartlife.iot.smartbulb.lightingservice":\
-                          {"transition_light_state":{"ignore_default":1,\
-                          "transition_period":' + str(self.__transition_period) +
-                          ',"saturation":' + str(self.__saturation) +
-                          ',"color_temp":0}}}')
-        else:
-            raise ValueError('saturation value out of range: 0 to 100')
+        '''Set the bulb saturation'''
+        self.transite_light_state(saturation=saturation)
 
     @property
     def brightness(self):
-        '''
-        Get the bulb brightness
-        '''
+        '''Get the bulb brightness'''
         if self.force_update:
-            col1 = 'system'
-            col2 = 'get_sysinfo'
-            col3 = 'light_state'
-            data = json.loads(self.status())
-            self.__brightness = int(data[col1][col2][col3]['brightness'])
+            self.__update_self_status()
         return self.__brightness
 
     @brightness.setter
     def brightness(self, brightness):
-        '''
-        Set the bulb brightness
-        '''
-        brightness = int(brightness)
-        if brightness >= 0 and brightness <= 100:
-            self.__brightness = brightness
-            self.__update('{"smartlife.iot.smartbulb.lightingservice":\
-                          {"transition_light_state":{"ignore_default":1,\
-                           "transition_period":' + str(self.__transition_period) +
-                           ',"brightness":' + str(self.__brightness) + '}}}')
-        else:
-            raise ValueError('brightness out of range: 0 to 100')
+        '''Set the bulb brightness'''
+        self.transite_light_state(brightness=brightness)
 
     @property
     def temperature(self):
-        '''
-        Get the bulb color temperature
-        '''
+        '''Get the bulb color temperature'''
         if self.force_update:
-            col1 = 'system'
-            col2 = 'get_sysinfo'
-            col3 = 'light_state'
-            data = json.loads(self.status())
-            self.__color_temp = int(data[col1][col2][col3]['color_temp'])
+            self.__update_self_status()
         return self.__color_temp
 
     @temperature.setter
     def temperature(self, temperature):
-        '''
-        Set the bulb color temperature
-        '''
-        temperature = int(temperature)
-        if temperature >= 2500 and temperature <= 9000:
-            self.__color_temp = temperature
-            self.__update('{"smartlife.iot.smartbulb.lightingservice":\
-                          {"transition_light_state":{"ignore_default":1,\
-                           "transition_period":' + str(self.__transition_period) +
-                           ',"color_temp":' + str(self.__color_temp) + '}}}')
-        else:
-            raise ValueError('temperature out of range: 2500 to 9000')
+        '''Set the bulb color temperature'''
+        self.transite_light_state(color_temp=color_temp)
 
     @property
     def mode(self):
-        '''
-        Get the bulb color mode
-        '''
+        '''Get the bulb color mode'''
         if self.force_update:
-            col1 = 'system'
-            col2 = 'get_sysinfo'
-            col3 = 'light_state'
-            data = json.loads(self.status())
-            self.__mode = int(data[col1][col2][col3]['mode'])
+            self.__update_self_status()
         return self.__mode
 
     @mode.setter
     def mode(self, mode):
-        '''
-        Set the bulb color mode
-        '''
-        if mode in ('normal', 'circadian'):
-            self.__mode = mode
-            self.__update('{"smartlife.iot.smartbulb.lightingservice":\
-                          {"transition_light_state":{"ignore_default":1,\
-                           "transition_period":' + str(self.__transition_period) +
-                           ',"mode":"' + mode + '"}}}')
-        else:
-            raise ValueError('mode should be "normal" or "circadian"')
+        '''Set the bulb color mode'''
+        self.transite_light_state(mode=mode)
 
     @property
     def hsb(self):
-        '''
-        Get the bulb hue, saturation, and brightness
-        '''
+        '''Get the bulb hue, saturation, and brightness'''
         return (self.__hue, self.__saturation, self.__brightness)
 
     @hsb.setter
     def hsb(self, hsb):
-        '''
-        Set the bulb hue, saturation, and brightness
-        '''
+        '''Set the bulb hue, saturation, and brightness'''
         try:
             hue, saturation, brightness = hsb
         except ValueError:
             raise ValueError('Pass an iterable with hue, saturation, and brightness')
 
-        if hue >= 0 and hue <= 360 and saturation >= 0 and saturation <= 100 and brightness >= 0 and brightness <= 100:
-            self.__hue = hue
-            self.__saturation = saturation
-            self.__brightness = brightness
-            self.__update('{"smartlife.iot.smartbulb.lightingservice":\
-                          {"transition_light_state":{"ignore_default":1,\
-                          "transition_period":' + str(self.__transition_period) +
-                          ',"hue":' + str(self.__hue) +
-                          ',"saturation":' + str(self.__saturation) +
-                          ',"brightness":' + str(self.__brightness) +
-                          ',"color_temp":0}}}')
-        else:
-            raise ValueError('hue, saturation, or brightness out of range')
+        self.transite_light_state(hue=hue, saturation=saturation, brightness=brightness)
 
-
-    # private methods
+    # Private Methods
 
     @staticmethod
     def __encrypt(value, key):
-        '''
-        Encrypt the command string
-        '''
+        '''Encrypt the command string'''
         valuelist = list(value)
 
         for i in range(len(valuelist)):
@@ -456,9 +314,7 @@ class LB130(object):
 
     @staticmethod
     def __decrypt(value, key):
-        '''
-        Decrypt the command string
-        '''
+        '''Decrypt the command string'''
         valuelist = list(value.decode('latin_1'))
 
         for i in range(len(valuelist)):
@@ -468,16 +324,27 @@ class LB130(object):
 
         return ''.join(valuelist)
 
-    def __update(self, message):
-        '''
-        Update the bulbs status
-        '''
-        self.__fetch_data(message)
+    def __update_self_status(self):
+        '''Fetch sysinfo from the bulb and update local values'''
+        data = self.__fetch_dict({"system":{"get_sysinfo":{}}})
+        sysinfo_data = data['system']['get_sysinfo']
+        light_state_data = sysinfo_data['light_state']
+        self.__alias = sysinfo_data['alias']
+        self.device_id = str(sysinfo_data['deviceId'])
+        self.__on_off = int(light_state_data['on_off'])
+        if not self.__on_off:
+            light_state_data = light_state_data['dft_on_state']
+
+        self.__hue = int(light_state_data['hue'])
+        self.__saturation = int(light_state_data['saturation'])
+        self.__brightness = int(light_state_data['brightness'])
+        self.__color_temp = int(light_state_data['color_temp'])
+        self.__mode = light_state_data['mode']
+
+        return data
 
     def __fetch_data(self, message):
-        '''
-        Fetch data from the device
-        '''
+        '''Fetch data from the device'''
         enc_message = self.__encrypt(message, self.encryption_key)
 
         for retry in range(1, self.__max_retry + 1):
@@ -505,3 +372,10 @@ class LB130(object):
                 logging.debug('Socket timed out. Try %d/%d' % (retry, self.__max_retry + 1))
 
         raise RuntimeError('Error connecting to bulb')
+
+    def __fetch_dict(self, data):
+        '''Fetch dict from the device. Return value is a dict too'''
+        if not isinstance(data, dict):
+            raise ValueError('data should be dict.')
+        message = json.dumps(data)
+        return json.loads(self.__fetch_data(message))
