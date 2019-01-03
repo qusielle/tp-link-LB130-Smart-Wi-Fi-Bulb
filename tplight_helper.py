@@ -47,7 +47,7 @@ def main():
     if args.saturation:        new_state['saturation'] = args.saturation
     if args.circadian:         new_state['mode'] = 'circadian'
     if args.brightness:        new_state['brightness'] = args.brightness
-    if args.brightness_offset: new_state['brightness_offset'] = max(light.min_brightness, min(light.max_brightness,
+    if args.brightness_offset: new_state['brightness'] = max(light.min_brightness, min(light.max_brightness,
                                                                 light.brightness + args.brightness_offset))
     if args.wait:              new_state['synchronous'] = True
 
