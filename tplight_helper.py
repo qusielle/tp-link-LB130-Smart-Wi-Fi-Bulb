@@ -35,7 +35,7 @@ def main():
     new_state = {}
 
     if args.status:            pprint.pprint(json.loads(light.status()))
-    if args.time:              light.time.strftime('%Y/%m/%d %H:%M:%S')
+    if args.time:              print(light.time.strftime('%Y/%m/%d %H:%M:%S'))
 
     if args.on:                new_state['on_off'] = 1
     if args.off:               new_state['on_off'] = 0
@@ -51,7 +51,8 @@ def main():
                                                                 light.brightness + args.brightness_offset))
     if args.wait:              new_state['synchronous'] = True
 
-    light.transite_light_state(**new_state)
+    if new_state:
+        light.transite_light_state(**new_state)
 
 if __name__ == '__main__':
     main()
