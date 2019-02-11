@@ -10,6 +10,7 @@ import time
 
 import tplight
 
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('address', help='IP of bulb')
