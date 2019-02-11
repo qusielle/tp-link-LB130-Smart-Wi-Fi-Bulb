@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LB130 Smart Wi-Fi Bulb - web control</title>
+  <meta name="description" content="Source code generated using layoutit.com">
+  <meta name="author" content="LayoutIt!">
+  <link href="{{url_for('static', filename='css/bootstrap.css')}}" rel="stylesheet">
+  <link href="{{url_for('static', filename='css/style.css')}}" rel="stylesheet">
+  <script src="{{url_for('static', filename='js/jquery.min.js')}}"></script>
+  <script src="{{url_for('static', filename='js/bootstrap.min.js')}}"></script>
+  <script src="{{url_for('static', filename='js/tplight.js')}}"></script>
+  <script type='text/javascript'>
+  $(window).on('load', function(){
+    $(function() {
+      var ison_cb_success = function(data, textStatus, jqXHR){
+          if (data['result']) {
+              $('#btn-on-off').text('ON').removeClass('btn-dark').addClass('btn-success');
+          } else {
+              $('#btn-on-off').text('OFF').removeClass('btn-success').addClass('btn-dark');
+          }
+      };
+
+      var check_ison = function(){doCmd('ison', ison_cb_success)};
+      var switch_bulb = function(){
+          if ($(this).text() == 'ON') {
+              doCmd('off', check_ison)
+          } else {
+              doCmd('on', check_ison)
+          }
+      }
+
+      $('#btn-on-off').click(switch_bulb);
+      var change_prg = function(id, val){
+          $(id).css('width', val + '%').attr('aria-valuenow', val);
+      }
+
+      var cb_success_maker = function(id, normalization_func=function(x){return x;}){
+          return function(data, textStatus, jqXHR){
+              input_data = data['result'];
+              if (id == 'temperature')
+                  input_data = Math.floor((data['result'] - 2500) / (9000 - 2500) * 100);
+              else if (id == 'hue')
+                  input_data = Math.floor((data['result']) / (360) * 100);
+              
+              change_prg('#prg-' + id, input_data);
+              $('#rng-' + id).val(data['result']);
+          }
+      }
+
+      var input_maker = function(id, normalization_func=function(x){return x;}){
+          $('#rng-' + id).on('change input', function(){
+              val = $(this).val();
+              doCmd(id, function(){change_prg('#prg-' + id, normalization_func(val));}, val);
+          });
+      }
+
+      doCmd('ison', ison_cb_success);
+      doCmd('brightness', cb_success_maker('brightness'));
+      doCmd('temperature', cb_success_maker('temperature', function(x){return Math.floor((x - 2500) / (9000 - 2500) * 100);}));
+      doCmd('hue', cb_success_maker('hue', function(x){return Math.floor((data['result']) / (360) * 100);}));
+      doCmd('saturation', cb_success_maker('saturation'));
+
+      input_maker('brightness');
+      input_maker('temperature', function(x){return Math.floor((x - 2500) / (9000 - 2500) * 100);});
+      input_maker('hue', function(x){return Math.floor((val) / (360) * 100);});
+      input_maker('saturation');
+    });
+  });
+  </script>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <nav class="navbar navbar-expand-lg navbar-light bg-light static-top">
+
+                    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                        <span class="navbar-toggler-icon"></span>
+                    </button> <a class="navbar-brand" href="#">LB130</a>
+                    <!-- <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                        <ul class="navbar-nav">
+                            <li class="nav-item active">
+                                <a class="nav-link" href="#">Link <span class="sr-only">(current)</span></a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">Link</a>
+                            </li>
+                        </ul>
+                        <ul class="navbar-nav ml-md-auto">
+                            <li class="nav-item active">
+                                <a class="nav-link" href="#">Link <span class="sr-only">(current)</span></a>
+                            </li>
+                        </ul>
+                    </div> -->
+                    <button id="btn-on-off" type="button" class="btn btn-lg btn-dark">
+                        Bulb state
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <div class="row justify-content-center">
+            <div class="col text-center">
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <h3 class="text-center">
+                    Brightness
+                </h3>
+                <div class="progress" style="background-image: linear-gradient(to right, rgb(0, 0, 0), #FFF);">
+                    <div id="prg-brightness" class="progress-bar">
+                    </div>
+                </div>
+                <div class="range">
+                    <input id="rng-brightness" type="range" class="custom-range" min="1" max="100" step="1">
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <h3 class="text-center">
+                    Temperature
+                </h3>
+                <div class="progress" style="background-image: linear-gradient(to right, rgb(255, 197, 143), rgb(255, 255, 251), rgb(201, 226, 255), rgb(64, 156, 255));">
+                    <div id="prg-temperature" class="progress-bar" style="background-color: #0004">
+                    </div>
+                </div>
+                <div class="range">
+                    <input id="rng-temperature" type="range" class="custom-range" min="2500" max="9000" step="1">
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <h3 class="text-center">
+                    Hue
+                </h3>
+                <div class="progress" style="background-image: linear-gradient(to right, #F00, #FF0, #0F0, #0FF, #00F, #F0F, #F00);">
+                    <div id="prg-hue" class="progress-bar" style="background-color: #0004">
+                    </div>
+                </div>
+                <div class="range">
+                    <input id="rng-hue" type="range" class="custom-range" min="0" max="360" step="1">
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <h3 class="text-center">
+                    Saturation
+                </h3>
+                <div class="progress" style="background-image: linear-gradient(to right, #FFF, #0F0);">
+                    <div id="prg-saturation" class="progress-bar" style="background-color: #0004">
+                    </div>
+                </div>
+                <div class="range">
+                    <input id="rng-saturation" type="range" class="custom-range" min="0" max="100" step="1">
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
