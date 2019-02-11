@@ -37,7 +37,7 @@ class LB130(object):
     __brightness = 0
     __color_temp = 0
     __mode = ''
-    force_update = False # Force quering the status every time when get property
+    force_update = False  # Force quering the status every time when get property
 
     __alias = ''
     device_id = ''
@@ -208,7 +208,7 @@ class LB130(object):
         if timezone >= 0 and timezone <= 109:
             date = self.time
             self.__fetch_dict({"smartlife.iot.common.timesetting": {
-                                 "set_timezone":{ "index": timezone,
+                                 "set_timezone": {"index": timezone,
                                                   "year": date.year,
                                                   "month": date.month,
                                                   "mday": date.day,
@@ -278,7 +278,7 @@ class LB130(object):
     @temperature.setter
     def temperature(self, temperature):
         '''Set the bulb color temperature'''
-        self.transite_light_state(color_temp=color_temp)
+        self.transite_light_state(color_temp=temperature)
 
     @property
     def mode(self):
@@ -366,7 +366,7 @@ class LB130(object):
                 data_received = False
                 dec_data = ''
                 while True:
-                    data, addr = sock.recvfrom(1024)  # buffer size is 1024 bytes
+                    data, _ = sock.recvfrom(1024)  # buffer size is 1024 bytes
                     dec_data = self.__decrypt(data, self.encryption_key)
                     if '}}}' in dec_data:  # end of sysinfo message
                         data_received = True
@@ -385,6 +385,13 @@ class LB130(object):
         raise RuntimeError('Error connecting to bulb')
 
     def __fetch_dict(self, data):
+        '''Fetch dict from the device. Return value is a dict too'''
+        if not isinstance(data, dict):
+            raise ValueError('data should be dict.')
+        message = json.dumps(data)
+        return json.loads(self.__fetch_data(message))
+
+    def fetch_dict(self, data):
         '''Fetch dict from the device. Return value is a dict too'''
         if not isinstance(data, dict):
             raise ValueError('data should be dict.')
