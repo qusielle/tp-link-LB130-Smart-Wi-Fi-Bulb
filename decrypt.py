@@ -1,14 +1,13 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 """
-Test script for decrypting data from the TP-Link RBG wireless light
+Test script for decrypting data from the TP-Link RBG wireless light.
 """
 
 
 def encrypt(value, key):
-    '''
-    Encrypt the command string
-    '''
+    """
+    Encrypt the command string.
+    """
     valuelist = list(value)
 
     for i in range(len(valuelist)):
@@ -20,9 +19,9 @@ def encrypt(value, key):
 
 
 def decrypt(value, key):
-    '''
-    Decrypt the command string
-    '''
+    """
+    Decrypt the command string.
+    """
     valuelist = list(value)
 
     for i in range(len(valuelist)):
@@ -34,9 +33,9 @@ def decrypt(value, key):
 
 
 def main():
-    '''
-    Main program function
-    '''
+    """
+    Main program function.
+    """
 
     encryption_key = 0xAB
 
@@ -57,5 +56,5 @@ def main():
     print(output)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
