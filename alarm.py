@@ -24,7 +24,7 @@ def long_transite(light, duration, brightness=None, color_temp=None, hue=None, s
         steps.append(duration % light.max_transition_period)
 
     for n, current_duration in enumerate(steps, 1):
-        states = {k: v[0] + (v[1] - v[0]) / len(steps) * n for k, v in start_end_states.items()}
+        states = {k: v[0] + (v[1] - v[0]) / len(steps) * n for k, v in list(start_end_states.items())}
         states['transition_period'] = current_duration
         states['synchronous'] = True
         if not light.ison():
@@ -64,7 +64,7 @@ def main():
         logging.basicConfig(level=logging.DEBUG)
 
     light = tplight.LB130(args.address)
-    print('Device alias: ' + light.alias)
+    print(('Device alias: ' + light.alias))
 
     scenario_1(light, args.time, args.max_brightness, args.max_temperature)
 
