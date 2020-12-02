@@ -4,7 +4,7 @@ import argparse
 import time
 import logging
 
-import tplight
+from tplight import LB130
 
 
 def long_transite(light, duration, brightness=None, color_temp=None, hue=None, saturation=None):
@@ -138,7 +138,7 @@ def main():
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
 
-    light = tplight.LB130(args.address)
+    light = LB130(args.address)
     logging.info('Device alias: %s', light.alias)
 
     scenario_1(light, args.time, args.max_brightness, args.max_temperature)

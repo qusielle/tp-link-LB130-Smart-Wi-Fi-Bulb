@@ -5,7 +5,7 @@ import argparse
 import json
 import pprint
 
-import tplight
+from . import tplight
 
 
 def main():
